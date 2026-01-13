@@ -55,6 +55,9 @@ pub struct Settings {
 
     /// The dry/wet mix of the delay effect.
     pub dry_wet_mix: f32,
+
+    /// Sample Rate
+    pub sample_rate: f32,
 }
 
 impl Default for Settings {
@@ -69,6 +72,7 @@ impl Default for Settings {
             lowpass_filter: 5000.0,
             highpass_filter: 500.0,
             dry_wet_mix: 0.5,
+            sample_rate: SAMPLE_RATE,
         }
     }
 }
@@ -93,19 +97,19 @@ impl Delay {
     /// Creates a new `Delay` instance with the specified settings.
     pub fn new(settings: Settings) -> Self {
         // Initialize the delay buffer with the specified delay time.
-        let delay_buffer_size = (settings.delay_time / 1000.0) * SAMPLE_RATE;
+        let delay_buffer_size = (settings.delay_time / 1000.0) * settings.sample_rate;
 
         let state = State {
             delay_buffer: vec![(0.0, 0.0); delay_buffer_size as usize],
             delay_buffer_index: 0,
             lowpass_filter: TPTOnePoleStereo::new(
                 Mode::LOWPASS,
-                SAMPLE_RATE as f64,
+                settings.sample_rate as f64,
                 settings.lowpass_filter,
             ),
             highpass_filter: TPTOnePoleStereo::new(
                 Mode::HIGHPASS,
-                SAMPLE_RATE as f64,
+                settings.sample_rate as f64,
                 settings.highpass_filter,
             ),
         };
