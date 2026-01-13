@@ -14,4 +14,4 @@ name = "aych_delay"
 
 # Dependencies for our examples
 [dev-dependencies]
-rodio = "0.16.0"
+rodio = "0.21.1"

@@ -1,7 +1,7 @@
 extern crate aych_delay;
 
 use aych_delay::{Delay, Settings};
-use rodio::{buffer::SamplesBuffer, Decoder, OutputStream, Sink};
+use rodio::{buffer::SamplesBuffer, Decoder};
 use std::fs::File;
 use std::path::Path;
 
@@ -37,10 +37,11 @@ fn main() {
     let mut source = Decoder::new_looped(file).unwrap();
 
     // Get a output stream handle to the default physical sound device
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let stream_handle =
+        rodio::OutputStreamBuilder::open_default_stream().expect("open default audio stream");
 
     // Create a sink to play samples
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
     // Create a 1024-sample buffer to hold the input and output data.
     let mut input = vec![0.0; 2048];
@@ -54,10 +55,10 @@ fn main() {
 
         // Fill the input buffer with samples from the WAV file
         for i in 0..input.len() {
-            input[i] = source.next().unwrap_or(0) as f32 / 32768.0;
+            input[i] = source.next().unwrap_or(0.0);
         }
 
-        delay.process(&mut input, &mut output);
+        delay.process(&input, &mut output);
 
         // Play the output buffer
         sink.append(SamplesBuffer::new(2, 44100, output.clone()));
