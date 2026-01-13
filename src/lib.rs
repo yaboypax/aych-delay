@@ -113,6 +113,77 @@ impl Delay {
         Self { settings, state }
     }
 
+    /// Processes a realtime buffer.
+    pub fn process_realtime(&mut self, buffer: &mut [f32]) {
+        let mut index = 0;
+
+        while index < buffer.len() - 1 {
+            let input_sample: (f32, f32) = (buffer[index], buffer[index + 1]);
+            let delay_sample = self.state.delay_buffer[self.state.delay_buffer_index];
+
+            // Apply feedback by scaling the delay sample by the current feedback level.
+            let delay_sample = (
+                delay_sample.0 * self.settings.feedback,
+                delay_sample.1 * self.settings.feedback,
+            );
+
+            // Apply phase reverse by inverting the phase of the delay sample.
+            let delay_sample = match self.settings.phase_reverse {
+                true => (-delay_sample.0, -delay_sample.1),
+                false => delay_sample,
+            };
+
+            // Apply filtering by convolving the delay sample with the filter coefficients.
+            let delay_sample = self.state.lowpass_filter.process(delay_sample);
+            let delay_sample = self.state.highpass_filter.process(delay_sample);
+
+            // Apply ping-pong by mixing the left and right channels of the delay sample.
+            if self.settings.ping_pong {
+                let width = self.settings.width / 2.0 + 0.5;
+
+                let pp_input = ((input_sample.0) * (1.0 - width), (input_sample.1) * width);
+
+                let pp_delay = (
+                    delay_sample.0 * (1.0 - width) + delay_sample.1 * width,
+                    delay_sample.1 * (1.0 - width) + delay_sample.0 * width,
+                );
+
+                self.state.delay_buffer[self.state.delay_buffer_index] =
+                    (pp_input.0 + pp_delay.0, pp_input.1 + pp_delay.1);
+            } else {
+                self.state.delay_buffer[self.state.delay_buffer_index] = (
+                    input_sample.0 + delay_sample.0,
+                    input_sample.1 + delay_sample.1,
+                );
+            }
+
+            // Mix the dry and wet signals
+            let delay_sample = (
+                (1.0 - self.settings.dry_wet_mix) * input_sample.0
+                    + self.settings.dry_wet_mix * delay_sample.0,
+                (1.0 - self.settings.dry_wet_mix) * input_sample.1
+                    + self.settings.dry_wet_mix * delay_sample.1,
+            );
+
+            // Apply output level by scaling the delayed sample by the current output level.
+            let delay_sample = (
+                delay_sample.0 * self.settings.output_level,
+                delay_sample.1 * self.settings.output_level,
+            );
+
+            // Write the delayed sample to the output buffer.
+            buffer[index] = delay_sample.0;
+            buffer[index + 1] = delay_sample.1;
+
+            // Increment the input and output buffer indices.
+            index += 1;
+
+            // Increment the delay buffer index and wrap around if necessary.
+            self.state.delay_buffer_index =
+                (self.state.delay_buffer_index + 1) % self.state.delay_buffer.len();
+        }
+    }
+
     /// Processes the input buffer and writes the updated signal to the output buffer.
     pub fn process(&mut self, input: &[f32], output: &mut [f32]) {
         let mut input_index = 0;
