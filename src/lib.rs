@@ -123,10 +123,10 @@ impl Delay {
 
         while index < buffer.len() - 1 {
             let input_sample: (f32, f32) = (buffer[index], buffer[index + 1]);
-            let mut delay_sample = self.state.delay_buffer[self.state.delay_buffer_index];
+            let delay_sample = self.state.delay_buffer[self.state.delay_buffer_index];
 
             // Apply feedback by scaling the delay sample by the current feedback level.
-            delay_sample = (
+            let feedback_sample = (
                 delay_sample.0 * self.settings.feedback,
                 delay_sample.1 * self.settings.feedback,
             );
@@ -148,16 +148,16 @@ impl Delay {
                 let pp_input = ((input_sample.0) * (1.0 - width), (input_sample.1) * width);
 
                 let pp_delay = (
-                    delay_sample.0 * (1.0 - width) + delay_sample.1 * width,
-                    delay_sample.1 * (1.0 - width) + delay_sample.0 * width,
+                    feedback_sample.0 * (1.0 - width) + feedback_sample.1 * width,
+                    feedback_sample.1 * (1.0 - width) + feedback_sample.0 * width,
                 );
 
                 self.state.delay_buffer[self.state.delay_buffer_index] =
                     (pp_input.0 + pp_delay.0, pp_input.1 + pp_delay.1);
             } else {
                 self.state.delay_buffer[self.state.delay_buffer_index] = (
-                    input_sample.0 + delay_sample.0,
-                    input_sample.1 + delay_sample.1,
+                    input_sample.0 + feedback_sample.0,
+                    input_sample.1 + feedback_sample.1,
                 );
             }
 
